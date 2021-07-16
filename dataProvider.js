@@ -1,3 +1,10 @@
+import * as React from "react";
+import {fetchUtils} from "react-admin";
+import { stringify } from 'query-string';
+
+const apiUrl = '/admin/api';
+const httpClient = fetchUtils.fetchJson;
+
 export const dataProvider = {
     getList: (resource, params) => {
         const {page, perPage} = params.pagination;
