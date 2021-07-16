@@ -1,6 +1,10 @@
 from fire import Fire
+import re
+from collections import defaultdict
 
-type_map = {'String': 'TextInput', 'Number': 'NumberInput', 'Boolean': 'BooleanInput'}
+
+type_map = defaultdict(lambda: 'TextInput')
+type_map.update({'String': 'TextInput', 'Number': 'NumberInput', 'Boolean': 'BooleanInput', 'Date': 'DateInput'})
 
 tpl = '''
 import * as React from "react";
@@ -20,39 +24,39 @@ import {
   DateInput,
 } from "react-admin";
 import BookIcon from "@material-ui/icons/Book";
-export const {name}Icon = BookIcon;
+export const %(name)sIcon = BookIcon;
 
-export const {name}List = (props) => (
+export const %(name)sList = (props) => (
   <List {...props}>
     <Datagrid>
       <TextField source="id" />
-      <EditButton basePath="/{url}" />
+      <EditButton basePath="/%(url)s" />
     </Datagrid>
   </List>
 );
 
-const {name}Title = ({ record }) => {
-  return <span>{name} {record ? `"${record.title}"` : ""}</span>;
+const %(name)sTitle = ({ record }) => {
+  return <span>%(name)s {record ? `"${record.title}"` : ""}</span>;
 };
 
-export const {name}Edit = (props) => (
-  <Edit title={<{name}Title />} {...props}>
+export const %(name)sEdit = (props) => (
+  <Edit title={<%(name)sTitle />} {...props}>
     <SimpleForm>
       <TextInput disabled source="id" />
-       {form}
+       %(form)s
     </SimpleForm>
   </Edit>
 );
 
-export const {name}Create = (props) => (
-  <Create title="Create a {name}" {...props}>
+export const %(name)sCreate = (props) => (
+  <Create title="Create a %(name)s" {...props}>
     <SimpleForm>
-        {form}
+        %(form)s
     </SimpleForm>
   </Create>
 );
-// import { {name}List, {name}Edit, {name}Create, {name}Icon } from "./{url}";
-// <Resource name="{url}" list={{name}List}  edit={{name}Edit} create={{name}Create} icon={{name}Icon} />
+// import { %(name)sList, %(name)sEdit, %(name)sCreate, %(name)sIcon } from "./%(url)s";
+// <Resource name="%(url)s" list={%(name)sList}  edit={%(name)sEdit} create={%(name)sCreate} icon={%(name)sIcon} />
 
 '''
 
@@ -69,8 +73,8 @@ def main(model):
     url = f'{name.lower()}s'
     schema = model.split('Schema(', 1)[1].split(')', 1)[0]
     form = '\n'.join(to_fields(re.findall('([\w\d_]+):\s?(\S+),', schema)))
-    print(tpl.format(name=name, url=url, form=form))
+    print(tpl % {'name': name, 'url': url, 'form': form})
 
 if __name__ == '__main__':
-    fire.Fire(main)
+    Fire(main)
 
