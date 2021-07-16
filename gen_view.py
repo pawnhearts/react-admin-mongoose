@@ -1,5 +1,6 @@
 from fire import Fire
 import re
+import demjson
 from collections import defaultdict
 
 
@@ -43,7 +44,7 @@ export const %(name)sEdit = (props) => (
   <Edit title={<%(name)sTitle />} {...props}>
     <SimpleForm>
       <TextInput disabled source="id" />
-       %(form)s
+%(form)s
     </SimpleForm>
   </Edit>
 );
@@ -51,7 +52,7 @@ export const %(name)sEdit = (props) => (
 export const %(name)sCreate = (props) => (
   <Create title="Create a %(name)s" {...props}>
     <SimpleForm>
-        %(form)s
+%(form)s
     </SimpleForm>
   </Create>
 );
@@ -62,17 +63,47 @@ export const %(name)sCreate = (props) => (
 
 def to_fields(data):
     for name, typ in data:
-        if name == 'timestamps':
-            yield '<DateField source="createdAt" />'
-        else:
-            yield f'<{type_map[typ]} source="{name}" />'
+        if isinstance(typ, dict):
+            typ = typ.get('type', None)
+        if typ is None:
+            continue
+        yield f'      <{type_map[typ]} source="{name}" />'
+
+
+def strip_obj(text):
+    count = 1
+    res = '{'
+    in_quotes = False
+
+    for s in text[1:]:
+        if not in_quotes and s == '{':
+            count += 1
+        elif  not in_quotes and s == '}':
+            count -= 1
+        for quote in '\'"':
+            if s == quote:
+                in_quotes = False if in_quotes == quote else quote
+        res += s
+        if not count:
+            break
+    return res
+        
+
 
 def main(model):
     model = open(model).read()
     name = re.search('''model\(['"](\w+)['"]''', model).groups(0)[0]
     url = f'{name.lower()}s'
     schema = model.split('Schema(', 1)[1].split(')', 1)[0]
-    form = '\n'.join(to_fields(re.findall('([\w\d_]+):\s?(\S+),', schema)))
+    for k in type_map:
+        schema = schema.replace(k, f'"{k}"')
+    timestamps = 'timestamps' in schema
+    schema = strip_obj(schema)
+    schema = demjson.decode(schema)
+    if timestamps:
+        schema['createdAt'] = 'Date'
+    form = '\n'.join(to_fields(schema.items()))
+    #form = '\n'.join(to_fields(re.findall('([\w\d_]+):\s?(\S+),', schema)))
     print(tpl % {'name': name, 'url': url, 'form': form})
 
 if __name__ == '__main__':
