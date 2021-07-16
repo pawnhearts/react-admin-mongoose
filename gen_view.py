@@ -27,8 +27,12 @@ import {
 import BookIcon from "@material-ui/icons/Book";
 export const %(name)sIcon = BookIcon;
 
+const %(name)sFilters = [
+    %(filters)s
+];
+
 export const %(name)sList = (props) => (
-  <List {...props}>
+  <List {...props} filters={%(name)sFilters}>
     <Datagrid>
       <TextField source="id" />
       <EditButton basePath="/%(url)s" />
@@ -90,7 +94,7 @@ def strip_obj(text):
         
 
 
-def main(model):
+def main(model, filters=[]):
     model = open(model).read()
     name = re.search('''model\(['"](\w+)['"]''', model).groups(0)[0]
     url = f'{name.lower()}s'
@@ -103,8 +107,9 @@ def main(model):
     if timestamps:
         schema['createdAt'] = 'Date'
     form = '\n'.join(to_fields(schema.items()))
+    filters = ',\n'.join(to_fields([(f, 'String') for f in filters]))
     #form = '\n'.join(to_fields(re.findall('([\w\d_]+):\s?(\S+),', schema)))
-    print(tpl % {'name': name, 'url': url, 'form': form})
+    print(tpl % {'filters': filters, 'name': name, 'url': url, 'form': form})
 
 if __name__ == '__main__':
     Fire(main)
