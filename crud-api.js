@@ -1,5 +1,48 @@
-module.exports = {view_set: function(router, url, model) {
+module.exports = {view_set: function(router, url, model, serializer=null) {
+    if(serializer === null) {
+        serializer = {
+            to_json: (val) => val,
+            from_req: async (req) => req.body,
+        }
+    }
 
+    const update = async (req, res) => {
+        //try {
+            serializer.from_req(req, async (data) => {
+                await model.updateOne({_id: req.params.id}, {'$set': data})
+                const post = await model.findOne({_id: req.params.id})
+                res.send(post)
+            });
+       //} catch {
+       //    res.status(404)
+       //    res.send({error: "model doesn't exist!"})
+       //}
+    }
+    const remove = async (req, res) => {
+        try {
+            await model.deleteOne({_id: req.params.id})
+            res.status(204).send()
+        } catch {
+            res.status(404)
+            res.send({error: "model doesn't exist!"})
+        }
+    }
+    const get_one = async (req, res) => {
+        try {
+            const post = await model.findOne({_id: req.params.id});
+            res.send(serializer.to_json(post));
+        } catch {
+            res.status(404)
+            res.send({error: "model doesn't exist!"})
+        }
+    }
+    const create = async (req, res) => {
+        serializer.from_req(req, async (data) => {
+            const post = new model(data)
+            await post.save()
+            res.send(post)
+        });
+    }
     router.get(url, async (req, res) => {
         let filters = req.query.filter?JSON.parse(req.query.filter):{};
         Object.keys(filters).forEach(k => {
@@ -9,70 +52,19 @@ module.exports = {view_set: function(router, url, model) {
         let total = await model.countDocuments(filters);
         let start = (req.query.page-1)*req.query.perPage;
         let posts = await model.find(filters).sort({sort: (req.query.order==='ASC')?1:-1}).skip(start).limit(req.query.perPage);
-        posts = [...posts];
         res.header('Content-Range', `${url} ${start}-${start+posts.length}/${total}`);
-        res.json(posts);
+        res.json(posts)//.map(serializer.to_json));
     })
 
-    router.post(url, async (req, res) => {
-        const post = new model(req.body)
-        await post.save()
-        res.send(post)
-    })
+    router.post(url, create)
 
-    router.get(url + "/:id", async (req, res) => {
-        try {
-            const post = await model.findOne({_id: req.params.id})
-            res.send(post)
-        } catch {
-            res.status(404)
-            res.send({error: "model doesn't exist!"})
-        }
-    })
+    router.get(url + "/:id", get_one)
 
-    router.patch(url + "/:id", async (req, res) => {
-        try {
-            const post = await model.findOne({_id: req.params.id})
-            for(let k in req.body) {
-                if (k.indexOf('_') !== 0) {
-                    post[k] = req.body[k];
-                }
-            }
+    router.patch(url + "/:id", update)
+    router.put(url + "/:id", update)
 
-            await post.save()
-            res.send(post)
-        } catch {
-            res.status(404)
-            res.send({error: "model doesn't exist!"})
-        }
-    })
 
-    router.put(url + "/:id", async (req, res) => {
-        try {
-            const post = await model.findOne({_id: req.params.id})
-            for(let k in req.body) {
-                if (k.indexOf('_') !== 0) {
-                    post[k] = req.body[k];
-                }
-            }
-
-            await post.save()
-            res.send(post)
-        } catch {
-            res.status(404)
-            res.send({error: "model doesn't exist!"})
-        }
-    })
-
-    router.delete(url + "/:id", async (req, res) => {
-        try {
-            await model.deleteOne({_id: req.params.id})
-            res.status(204).send()
-        } catch {
-            res.status(404)
-            res.send({error: "model doesn't exist!"})
-        }
-    })
+    router.delete(url + "/:id", remove)
 
 }
 }
